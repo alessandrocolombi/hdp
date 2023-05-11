@@ -1,4 +1,4 @@
-#include "hdp.hpp"
+#include "hdp.h"
 
 //HdpSampler::HdpSampler(const std::vector<std::vector<double>> &_data): data(_data) {
     //numGroups = data.size();
@@ -14,7 +14,12 @@
 //}
 
 // Constructor for HdpSampler class that takes in a vector of vectors of doubles as input
-HdpSampler::HdpSampler(const std::vector<std::vector<double>> &_data): data(_data) {
+HdpSampler::HdpSampler( const std::vector<std::vector<double>> &_data,
+                        double _priorMean, double _priorA, double _priorB, double _priorLambda,
+                        double _a_gamma, double _b_gamma, double _a_alpha, double _b_alpha): data(_data), 
+                            priorMean(_priorMean), priorA(_priorA), priorB(_priorB), priorLambda(_priorLambda), 
+                            a_gamma(_a_gamma), b_gamma(_b_gamma), a_alpha(_a_alpha), b_alpha(_b_alpha)
+{
     // Set number of groups to size of input data vector
     numGroups = data.size();
     // Initialize number of data points to 0
@@ -43,18 +48,18 @@ void HdpSampler::init() {
     sample::rnorm  Norm;           //create normal sampler object
     sample::runif  Unif;           //create uniform sampler object
     sample::sample_index sample_index;  //create categorical sampler object
-    // TODO now we fix this, remember to put priors or pass from
-    // constructor
-    priorMean = 0.0;
-    priorA = 2.0;
-    priorB = 2.0;
-    priorLambda = 0.5;
-    alpha = 1.0;
-    gamma = 1.0;
+
+    //priorMean = 0.0;
+    //priorA = 2.0;
+    //priorB = 2.0;
+    //priorLambda = 0.5;
+    alpha = 0.001;
+    gamma = 0.001;
 
     int HDP_CLUSTER_RATIO = 5;
     int numClus = numdata / (HDP_CLUSTER_RATIO + numGroups);
     numComponents = numClus;
+    TotalNumTables = -1.0; // set in impossible first value, it is never actually used
     for (int h=0; h < numClus; h++) {
         means.push_back( Norm(engine,priorMean,0.5) );
         double u{Unif(engine)};
@@ -89,7 +94,7 @@ void HdpSampler::sampleAtoms() {
     // Sampling 
     sample::GSL_RNG engine(seed);  //engine with seed
     sample::rnorm  Norm;           //create normal sampler object
-    sample::rnorm  Gamma;           //create gamma sampler object
+    sample::rgamma Gamma;           //create gamma sampler object
 
     std::vector<std::vector<double>> datavec(numComponents); // one vector per component
     for (int h=0; h < numComponents; h++)
@@ -116,7 +121,15 @@ void HdpSampler::sampleAtoms() {
 }
 
 void HdpSampler::sampleAllocations() {
-    
+
+    // Sampling 
+    sample::GSL_RNG engine(seed);  //engine with seed
+    sample::rnorm  Norm;           //create normal sampler object
+    sample::sample_index sample_index;  //create categorical sampler object
+    sample::rgamma Gamma;           //create gamma sampler object
+
+    double two_pi = 2.0 * M_PI; // 2*\pi
+
     for (int i = 0; i < numGroups; i++) {
         for (int j=0; j < samplesPerGroup[i]; j++) {
             Eigen::VectorXd logprobas(numComponents + 1);
@@ -125,21 +138,24 @@ void HdpSampler::sampleAllocations() {
             sizes[oldAlloc] -= 1;
             for (int h=0; h < numComponents; h++) {
                 double logproba = std::log(1.0 * sizes_from_rest[i][h] + alpha * betas(h));
-                logproba += stan::math::normal_lpdf(data[i][j], means[h], stddevs[h]); // <-----------------------------------------------------------------------------
+                logproba += -0.5*std::log(two_pi*stddevs[h]*stddevs[h]) - 
+                             0.5*( (data[i][j] - means[h])*(data[i][j] - means[h]) )/(stddevs[h]*stddevs[h]); //stan::math::normal_lpdf(data[i][j], means[h], stddevs[h]); 
                 logprobas[h] = logproba;
             }
-            logprobas[numComponents] = utils::marginalLogLikeNormalGamma(data[i][j], priorMean, priorA, priorB, priorLambda); // <-----------------------------------------------------------------------------
+            logprobas[numComponents] = marginalLogLikeNormalGamma(data[i][j], priorMean, priorA, priorB, priorLambda); 
             double beta = betas[numComponents];
             logprobas[numComponents] += std::log(alpha * beta);
+
             Eigen::VectorXd probas = logprobas.array().exp() + 1e-6;
             probas /= probas.sum();
-            int newAlloc = stan::math::categorical_rng(probas, rng) - 1; // <-----------------------------------------------------------------------------
+
+            int newAlloc = sample_index(engine, probas);//stan::math::categorical_rng(probas, rng) - 1;
             cluster_allocs[i][j] = newAlloc;
             if (newAlloc == numComponents) {
                 std::vector<double> params = normalGammaUpdate(std::vector<double>{data[i][j]}, priorMean, priorA, priorB,priorLambda); 
-                double tau = stan::math::gamma_rng(params[1], params[2], rng); // <-----------------------------------------------------------------------------
+                double tau = Gamma(engine, params[1], 1.0/params[2]);//stan::math::gamma_rng(params[1], params[2], rng);
                 double sigmaNorm = 1.0 / std::sqrt(tau * params[3]);
-                double mu = stan::math::normal_rng(params[0], sigmaNorm, rng); // <-----------------------------------------------------------------------------
+                double mu = Norm(engine,params[0], sigmaNorm);//stan::math::normal_rng(params[0], sigmaNorm, rng); 
                 means.push_back(mu);
                 stddevs.push_back(1.0 / std::sqrt(tau));
                 numComponents += 1;
@@ -155,7 +171,7 @@ void HdpSampler::sampleAllocations() {
             }
         }
     }
-    
+
 }
 
 void HdpSampler::sampleLatent() {
@@ -170,12 +186,30 @@ void HdpSampler::sampleLatent() {
         for (int h=0; h < numComponents; h++) {
             int numCustomers = sizes_from_rest[i][h];
             Eigen::VectorXd probas = Eigen::VectorXd::Zero(numCustomers);
+            Eigen::VectorXd log_stirling1_vec = lastirling1(numCustomers);
+            if(log_stirling1_vec.size() < numCustomers )
+                throw std::runtime_error("Error in sampleLatent, size of log_stirling1_vec ");
+
             for (int m=0; m < numCustomers; m++) {
-                double s = 1.0 * stirling_first(numCustomers, m+1); // <-----------------------------------------------------------------------------
-                double gammas = std::exp(
-                    std::lgamma(alpha * betas(h) -
-                    std::lgamma(alpha * betas(h) + numCustomers)));
+
+                if(std::isnan(log_stirling1_vec(m))){
+                    Rcpp::Rcout<<"log_stirling1_vec:"<<std::endl<<log_stirling1_vec<<std::endl;
+                    throw std::runtime_error("Error in hdp.cpp, get a nan in log_stirling1_vec ");
+                }
+
+                // it is correct to take the m-th entry because lastirling1 fucntion automatically erase the first value |s(n,0)=0|
+                double s = std::exp( log_stirling1_vec(m) ); //double s = 1.0 * stirling_first(numCustomers, m+1); 
+                double gammas = std::exp(  std::lgamma(alpha * betas(h)) - std::lgamma(alpha * betas(h) + numCustomers)  );
                 probas(m) = s * gammas * std::pow(alpha * betas(h), m+1);
+                if(std::isnan(probas(m))){
+                    Rcpp::Rcout<<"s = "<<s<<std::endl;
+                    Rcpp::Rcout<<"nan m is m = "<<m<<std::endl;
+                    Rcpp::Rcout<<"alpha = "<<alpha<<std::endl;
+                    Rcpp::Rcout<<"gammas = "<<gammas<<std::endl;
+                    Rcpp::Rcout<<"betas:"<<std::endl<<betas<<std::endl;
+                    Rcpp::Rcout<<"numCustomers = "<<numCustomers<<std::endl;
+                    throw std::runtime_error("Error in hdp.cpp, get a nan in probas ");
+                }
             }
             if (probas.sum() > 0) {
                 probas /= probas.sum();
@@ -186,8 +220,9 @@ void HdpSampler::sampleLatent() {
         }
         numTables += curr;
     }
-    numTables(numComponents) = gamma;
-    betas = Dir_veccol(engine, numTables);//stan::math::dirichlet_rng(numTables, rng);
+    numTables(numComponents) = gamma; // yes, the last Dirichlet parameter is gamma
+    betas = Dirichlet(engine, numTables);//stan::math::dirichlet_rng(numTables, rng);
+    TotalNumTables = numTables.head(numComponents).sum(); // update number of tables
 }
 
 
@@ -251,6 +286,7 @@ HdpState HdpSampler::getStateAsProto() {
 }
 */
 
+
 void HdpSampler::check() {
     assert (means.size() == stddevs.size());
     assert( means.size() == numComponents);
@@ -274,10 +310,42 @@ void HdpSampler::check() {
     }
 }
 
+void HdpSampler::save()
+{
+    out_Allocations.push_back(cluster_allocs);
+    out_mu.push_back( Rcpp::NumericVector (means.begin(),means.end()) );  //create temporary vector with current values within push_back call. It is as creating a temporary vector and push it back, but more efficient
+    out_sigma.push_back(  Rcpp::NumericVector (stddevs.begin(),stddevs.end())  ); //create temporary vector with current values within push_back call. It is as creating a temporary vector and push it back, but more efficient
+    out_K.push_back(numComponents);
+    out_alpha.push_back(alpha);
+    out_gamma.push_back(gamma);
+
+
+    // Operations for density estimation -- START
+    HDP_Traits::MatRow q_it = HDP_Traits::MatRow::Zero(numGroups, numComponents + 1);
+    for (int i = 0; i < numGroups; i++) {
+        Eigen::VectorXd log_qs(numComponents + 1);
+        for (int h=0; h < numComponents; h++) 
+            log_qs[h] = std::log(1.0 * sizes_from_rest[i][h] + alpha * betas(h));  
+        
+        log_qs[numComponents] = std::log(alpha * betas[numComponents]); // for density estimation
+        Eigen::VectorXd qs = log_qs.array().exp() + 1e-6; // for density estimation
+        qs /= qs.sum();
+        //for (int h=0; h < qs.size(); h++) {
+            //if( qs(h) < -1e-6 ){
+                //Rcpp::Rcout<<"qs("<<h<<") = "<<qs(h)<<std::endl;
+                //throw std::runtime_error("Error, qs has negative component ");
+            //}
+        //}
+        q_it.row(i) = qs;
+    }
+    out_q.push_back(q_it);
+    // Operations for density estimation -- END
+}
 
 std::vector<double> HdpSampler::normalGammaUpdate(std::vector<double> data,
                                                   double priorMean, double priorA,
-                                                  double priorB, double priorLambda) {
+                                                  double priorB, double priorLambda) const
+{
 
   double postMean, postA, postB, postLambda;
   int n = data.size();
@@ -302,4 +370,101 @@ std::vector<double> HdpSampler::normalGammaUpdate(std::vector<double> data,
 
   return std::vector<double>{postMean, postA, postB, postLambda};
 }
+
+
+double HdpSampler::marginalLogLikeNormalGamma(double datum, double mean, double a, double b, double lambda) const
+{
+  
+  std::vector<double> params = normalGammaUpdate(std::vector<double>{datum}, mean, a, b, lambda);
+
+  double out = std::lgamma(params[1]) - std::lgamma(a);
+  out += a * std::log(b) - params[1] * std::log(params[2]);
+  out += 0.5 * (std::log(lambda) - std::log(params[3]));
+  out -= M_PI;
+  return out;
+}
+
+
+// Rigon - lastirling1
+//
+// Commento Ale: questa fuzione restituisce il vettore contenente il logaritmo dell'intero sviluppo dei moduli di un
+// numero di Stirling del primo tipo. 
+// Per esempio, per n=4, ho |s(n,0)| = 0, |s(n,1)| = 6, |s(n,2)|= 11, |s(n,3)| = 6, |s(n,4)| = 1.
+// Quindi, questa funzione resituisce lastirling1(4) = log(6,11,6,1) = (1.791,2.397,1.791,0)
+Eigen::VectorXd HdpSampler::lastirling1(int n) const 
+{
+  if(n == 0){
+    Eigen::VectorXd zero = Eigen::VectorXd::Constant(1,0.0); 
+    return (zero);
+  }
+
+  Eigen::VectorXd LogSk1 = Eigen::VectorXd::Constant(n+1,0.0); 
+  Eigen::VectorXd LogSk = Eigen::VectorXd::Constant(n+1,0.0); 
+
+  LogSk1(1) = 0;
+  LogSk1(0) = -std::numeric_limits<double>::infinity();
+  LogSk(0)  = -std::numeric_limits<double>::infinity();
+
+  for(int i = 2; i <= n; i++){
+    for(int j  = 1; j < i; j++){
+      LogSk(j) = LogSk1(j) + std::log(i - 1 + std::exp(LogSk1(j-1) - LogSk1(j)));
+    }
+    LogSk(i)  = 0;
+    LogSk1    = LogSk;
+  }
+  return( LogSk.tail(n) ); //eliminate the first element, i.e, return the last n elements
+}
+
+
+void HdpSampler::updateParams(){
+
+    // Sampling 
+    sample::GSL_RNG engine(seed);  //engine with seed
+    sample::rbeta Beta;  //create beta sampler object
+    sample::rgamma Gamma; //create gamma sampler object
+    sample::runif Unif; //create unif sampler object
+
+    double u{0.0};
+    double pi{0.0};
+
+    //1) Concentration parameter gamma 
+    double eta = Beta(engine, gamma + 1.0, TotalNumTables);
+    pi = (a_gamma + (double)numComponents - 1.0) / (a_gamma + (double)numComponents - 1.0 + TotalNumTables * (b_gamma - std::log(eta)) );
+    u = Unif(engine);
+    if(u < pi){
+        //Rcpp::Rcout<<"-----------------------------------------"<<std::endl;
+        //Rcpp::Rcout<<"shape = "<<a_gamma + (double)numComponents<<std::endl;
+        //Rcpp::Rcout<<"rate =  "<< b_gamma - std::log(eta) <<std::endl;
+        //Rcpp::Rcout<<"mean = "<< (a_gamma + (double)numComponents) / (b_gamma - std::log(eta)) <<std::endl;
+        gamma = Gamma( engine, a_gamma + (double)numComponents,  1.0/(b_gamma - std::log(eta)) );
+    }
+    else{
+        //Rcpp::Rcout<<"-----------------------------------------"<<std::endl;
+        //Rcpp::Rcout<<"shape = "<<a_gamma + (double)numComponents - 1.0<<std::endl;
+        //Rcpp::Rcout<<"rate =  "<< b_gamma - std::log(eta) <<std::endl;
+        //Rcpp::Rcout<<"mean = "<< (a_gamma + (double)numComponents - 1.0) / (b_gamma - std::log(eta)) <<std::endl;
+        gamma = Gamma( engine, a_gamma + (double)numComponents - 1.0,  1.0/(b_gamma - std::log(eta)) );
+    }
+
+    //2) Concentration parameter alpha
+    double sum_log_w = 0.0;
+    unsigned int sum_v = 0;
+
+    for(std::size_t j = 0; j < numGroups; j++){
+        sum_log_w += std::log(Beta(engine, alpha + 1.0, (double)samplesPerGroup[j]));
+        pi = ( (double)samplesPerGroup[j] )/( (double)samplesPerGroup[j] + alpha);
+        u = Unif(engine);
+        if(u < sum_v){
+            sum_v += 1;
+        }
+    }
+    alpha = Gamma(a_alpha + TotalNumTables - (double)sum_v, 1.0/(b_alpha - sum_log_w));    
+}
+
+
+
+
+
+
+
 

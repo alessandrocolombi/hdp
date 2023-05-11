@@ -220,6 +220,23 @@ namespace sample{ //use the sample:: namespace to avoid clashes with R or other 
 		}
 	};
 
+
+	//Callable object to draw a sample from Beta(a,b).
+	struct rbeta{
+
+		//Gets the engine
+		//Beta(a,b)
+		double operator()(GSL_RNG const & engine, double const & a, double const & b)const{
+			return gsl_ran_beta(engine(),a,b);
+		}
+
+		//Engine defaulted
+		//Beta(a,b)
+		double operator()(double const & a, double const & b)const{
+			return gsl_ran_beta(GSL_RNG ()(),a,b);
+		}
+	};
+
 	//Callable object to draw a sample from Poisson(lambda).
 	struct rpoisson{
 

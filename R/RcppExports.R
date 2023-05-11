@@ -8,3 +8,17 @@ TestGSL <- function() {
     invisible(.Call(`_hdp_TestGSL`))
 }
 
+#' HDP Marginal Sampler
+#'
+#' @export
+HDPMarginalSampler <- function(Niter, Nburnin, d, n_j, data_list, priorMean, priorA, priorB, priorLambda, a_gamma, b_gamma, a_alpha, b_alpha) {
+    .Call(`_hdp_HDPMarginalSampler`, Niter, Nburnin, d, n_j, data_list, priorMean, priorA, priorB, priorLambda, a_gamma, b_gamma, a_alpha, b_alpha)
+}
+
+#' Testing HDP
+#'
+#' @export
+TestHDP <- function() {
+    .Call(`_hdp_TestHDP`)
+}
+

@@ -20,9 +20,44 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
+// HDPMarginalSampler
+Rcpp::List HDPMarginalSampler(int Niter, int Nburnin, int d, std::vector<int> n_j, Rcpp::List data_list, double priorMean, double priorA, double priorB, double priorLambda, double a_gamma, double b_gamma, double a_alpha, double b_alpha);
+RcppExport SEXP _hdp_HDPMarginalSampler(SEXP NiterSEXP, SEXP NburninSEXP, SEXP dSEXP, SEXP n_jSEXP, SEXP data_listSEXP, SEXP priorMeanSEXP, SEXP priorASEXP, SEXP priorBSEXP, SEXP priorLambdaSEXP, SEXP a_gammaSEXP, SEXP b_gammaSEXP, SEXP a_alphaSEXP, SEXP b_alphaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type Niter(NiterSEXP);
+    Rcpp::traits::input_parameter< int >::type Nburnin(NburninSEXP);
+    Rcpp::traits::input_parameter< int >::type d(dSEXP);
+    Rcpp::traits::input_parameter< std::vector<int> >::type n_j(n_jSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type data_list(data_listSEXP);
+    Rcpp::traits::input_parameter< double >::type priorMean(priorMeanSEXP);
+    Rcpp::traits::input_parameter< double >::type priorA(priorASEXP);
+    Rcpp::traits::input_parameter< double >::type priorB(priorBSEXP);
+    Rcpp::traits::input_parameter< double >::type priorLambda(priorLambdaSEXP);
+    Rcpp::traits::input_parameter< double >::type a_gamma(a_gammaSEXP);
+    Rcpp::traits::input_parameter< double >::type b_gamma(b_gammaSEXP);
+    Rcpp::traits::input_parameter< double >::type a_alpha(a_alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type b_alpha(b_alphaSEXP);
+    rcpp_result_gen = Rcpp::wrap(HDPMarginalSampler(Niter, Nburnin, d, n_j, data_list, priorMean, priorA, priorB, priorLambda, a_gamma, b_gamma, a_alpha, b_alpha));
+    return rcpp_result_gen;
+END_RCPP
+}
+// TestHDP
+Rcpp::List TestHDP();
+RcppExport SEXP _hdp_TestHDP() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(TestHDP());
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_hdp_TestGSL", (DL_FUNC) &_hdp_TestGSL, 0},
+    {"_hdp_HDPMarginalSampler", (DL_FUNC) &_hdp_HDPMarginalSampler, 13},
+    {"_hdp_TestHDP", (DL_FUNC) &_hdp_TestHDP, 0},
     {NULL, NULL, 0}
 };
 
