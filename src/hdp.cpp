@@ -77,6 +77,18 @@ void HdpSampler::init() {
         sizes_from_rest[i] = std::vector<int>(numClus, 0);
         for (int j=0; j < samplesPerGroup[i]; j++) {
             //int clus = stan::math::categorical_rng(probas, rng) - 1;
+            if( probas.size() == 0 )
+                throw std::runtime_error("Error in hdp::init(), probas is empty ");
+            if( std::abs( probas.sum()-1 ) > 1e-8 ){
+                Rcpp::Rcout<<"probas:"<<std::endl<<probas<<std::endl;
+                throw std::runtime_error("Error in hdp::init(), probas do not sum up to 1 ");
+            }
+            for (int hh=0; hh < probas.size(); hh++) {
+                if( probas(hh) < -1e-6 ){
+                    Rcpp::Rcout<<"probas("<<hh<<") = "<<probas(hh)<<std::endl;
+                    throw std::runtime_error("Error in hdp::init(), probas has negative component ");
+                }
+            }
             int clus = sample_index(engine, probas);
             cluster_allocs[i][j] = clus;
             sizes_from_rest[i][clus] += 1;
@@ -149,6 +161,19 @@ void HdpSampler::sampleAllocations() {
             Eigen::VectorXd probas = logprobas.array().exp() + 1e-6;
             probas /= probas.sum();
 
+            if( probas.size() == 0 )
+                throw std::runtime_error("Error in hdp::sampleAllocations(), probas is empty ");
+            if( std::abs( probas.sum()-1 ) > 1e-8 ){
+                Rcpp::Rcout<<"probas:"<<std::endl<<probas<<std::endl;
+                throw std::runtime_error("Error in hdp::sampleAllocations(), probas do not sum up to 1 ");
+            }
+            for (int hh=0; hh < probas.size(); hh++) {
+                if( probas(hh) < -1e-6 ){
+                    Rcpp::Rcout<<"probas("<<hh<<") = "<<probas(hh)<<std::endl;
+                    throw std::runtime_error("Error in hdp::sampleAllocations(), probas has negative component ");
+                }
+            }
+
             int newAlloc = sample_index(engine, probas);//stan::math::categorical_rng(probas, rng) - 1;
             cluster_allocs[i][j] = newAlloc;
             if (newAlloc == numComponents) {
@@ -191,21 +216,27 @@ void HdpSampler::sampleLatent() {
                 throw std::runtime_error("Error in sampleLatent, size of log_stirling1_vec ");
 
             for (int m=0; m < numCustomers; m++) {
-
                 if(std::isnan(log_stirling1_vec(m))){
                     Rcpp::Rcout<<"log_stirling1_vec:"<<std::endl<<log_stirling1_vec<<std::endl;
                     throw std::runtime_error("Error in hdp.cpp, get a nan in log_stirling1_vec ");
                 }
 
-                // it is correct to take the m-th entry because lastirling1 fucntion automatically erase the first value |s(n,0)=0|
+                /*
+                // this is unstable, get inf and 0
                 double s = std::exp( log_stirling1_vec(m) ); //double s = 1.0 * stirling_first(numCustomers, m+1); 
                 double gammas = std::exp(  std::lgamma(alpha * betas(h)) - std::lgamma(alpha * betas(h) + numCustomers)  );
                 probas(m) = s * gammas * std::pow(alpha * betas(h), m+1);
+                */
+                // it is correct to take the m-th entry because lastirling1 fucntion automatically erase the first value |s(n,0)=0|
+                double log_s =  log_stirling1_vec(m); //double s = 1.0 * stirling_first(numCustomers, m+1); 
+                double log_gammas = std::lgamma(alpha * betas(h)) - std::lgamma(alpha * betas(h) + numCustomers);
+                probas(m) = std::exp( log_s + log_gammas ) * std::pow(alpha * betas(h), m+1);
                 if(std::isnan(probas(m))){
-                    Rcpp::Rcout<<"s = "<<s<<std::endl;
+                    Rcpp::Rcout<<"log_s = "<<log_s<<std::endl;
+                    //Rcpp::Rcout<<"log_stirling1_vec:"<<std::endl<<log_stirling1_vec<<std::endl;
                     Rcpp::Rcout<<"nan m is m = "<<m<<std::endl;
                     Rcpp::Rcout<<"alpha = "<<alpha<<std::endl;
-                    Rcpp::Rcout<<"gammas = "<<gammas<<std::endl;
+                    Rcpp::Rcout<<"log_gammas = "<<log_gammas<<std::endl;
                     Rcpp::Rcout<<"betas:"<<std::endl<<betas<<std::endl;
                     Rcpp::Rcout<<"numCustomers = "<<numCustomers<<std::endl;
                     throw std::runtime_error("Error in hdp.cpp, get a nan in probas ");
@@ -213,6 +244,20 @@ void HdpSampler::sampleLatent() {
             }
             if (probas.sum() > 0) {
                 probas /= probas.sum();
+
+                if( probas.size() == 0 )
+                    throw std::runtime_error("Error in hdp::sampleLatent(), probas is empty ");
+                if( std::abs( probas.sum()-1 ) > 1e-8 ){
+                    Rcpp::Rcout<<"probas:"<<std::endl<<probas<<std::endl;
+                    throw std::runtime_error("Error in hdp::sampleLatent(), probas do not sum up to 1 ");
+                }
+                for (int hh=0; hh < probas.size(); hh++) {
+                    if( probas(hh) < -1e-6 ){
+                        Rcpp::Rcout<<"probas("<<hh<<") = "<<probas(hh)<<std::endl;
+                        throw std::runtime_error("Error in hdp::sampleLatent(), probas has negative component ");
+                    }
+                }
+
                 curr(h) = sample_index(engine, probas);//stan::math::categorical_rng(probas, rng) - 1;
             } else {
                 curr(h) = 0;
