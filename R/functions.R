@@ -36,10 +36,7 @@ predictive <- function( idx_group, grid, fit,
 
     sigma0 = priorB/priorA
     nu0 = 2*priorA
-    scale = sqrt( sigma0/priorLambda )
-    #sigma0 = priorB/priorA
-    #nu0 = 2*priorA
-    #scale = sqrt( (priorLambda)/(priorLambda + 1) * sigma0 )
+    scale = sqrt( (priorLambda+1)/(priorLambda) * sigma0 )
     if(scale <= 0)
       stop("The scale parameter has to be strictly positive.")
 
