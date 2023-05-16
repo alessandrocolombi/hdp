@@ -27,7 +27,7 @@ predictive <- function( idx_group, grid, fit,
     # Kernel_grid[m,i] = Norm(grid[i] | mu_{m}^{(it)}, sigma^2_{m}^{(it)})
     Kernel_grid = t(sapply(1:K_it, simplify = "matrix",
                            function(m){
-                             dnorm( x = grid, mean=mu_it[m], sd=sqrt(sig2_it[m]) )
+                             dnorm( x = grid, mean = mu_it[m], sd = sqrt(sig2_it[m]) )
                            }
     ))
 
