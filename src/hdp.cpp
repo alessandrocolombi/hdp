@@ -16,9 +16,11 @@
 // Constructor for HdpSampler class that takes in a vector of vectors of doubles as input
 HdpSampler::HdpSampler( const std::vector<std::vector<double>> &_data,
                         double _priorMean, double _priorA, double _priorB, double _priorLambda,
-                        double _a_gamma, double _b_gamma, double _a_alpha, double _b_alpha): data(_data), 
+                        double _a_gamma, double _b_gamma, double _a_alpha, double _b_alpha,
+                        double _alpha_init,double _gamma_init,bool _UpdateConc): data(_data), 
                             priorMean(_priorMean), priorA(_priorA), priorB(_priorB), priorLambda(_priorLambda), 
-                            a_gamma(_a_gamma), b_gamma(_b_gamma), a_alpha(_a_alpha), b_alpha(_b_alpha)
+                            a_gamma(_a_gamma), b_gamma(_b_gamma), a_alpha(_a_alpha), b_alpha(_b_alpha),
+                            alpha_init(_alpha_init), gamma_init(_gamma_init), UpdateConc(_UpdateConc)
 {
     // Set number of groups to size of input data vector
     numGroups = data.size();
@@ -44,7 +46,7 @@ HdpSampler::HdpSampler( const std::vector<std::vector<double>> &_data,
 void HdpSampler::init() {
 
     // Sampling 
-    sample::GSL_RNG engine(seed);  //engine with seed
+    //sample::GSL_RNG engine(seed);  //engine with seed
     sample::rnorm  Norm;           //create normal sampler object
     sample::runif  Unif;           //create uniform sampler object
     sample::sample_index sample_index;  //create categorical sampler object
@@ -53,8 +55,8 @@ void HdpSampler::init() {
     //priorA = 2.0;
     //priorB = 2.0;
     //priorLambda = 0.5;
-    alpha = 0.001;
-    gamma = 0.001;
+    alpha = alpha_init;//0.001; // initial value
+    gamma = gamma_init;//0.001; // initial value
 
     int HDP_CLUSTER_RATIO = 5;
     int numClus = numdata / (HDP_CLUSTER_RATIO + numGroups);
@@ -104,7 +106,7 @@ void HdpSampler::init() {
 
 void HdpSampler::sampleAtoms() {
     // Sampling 
-    sample::GSL_RNG engine(seed);  //engine with seed
+    //sample::GSL_RNG engine(seed);  //engine with seed
     sample::rnorm  Norm;           //create normal sampler object
     sample::rgamma Gamma;           //create gamma sampler object
 
@@ -135,7 +137,7 @@ void HdpSampler::sampleAtoms() {
 void HdpSampler::sampleAllocations() {
 
     // Sampling 
-    sample::GSL_RNG engine(seed);  //engine with seed
+    //sample::GSL_RNG engine(seed);  //engine with seed
     sample::rnorm  Norm;           //create normal sampler object
     sample::sample_index sample_index;  //create categorical sampler object
     sample::rgamma Gamma;           //create gamma sampler object
@@ -201,7 +203,7 @@ void HdpSampler::sampleAllocations() {
 
 void HdpSampler::sampleLatent() {
     // Sampling 
-    sample::GSL_RNG engine(seed);  //engine with seed
+    //sample::GSL_RNG engine(seed);  //engine with seed
     sample::sample_index sample_index;  //create categorical sampler object
     sample::rdirichlet<Eigen::VectorXd>  Dirichlet; //create Dirichlet sampler object
 
@@ -464,7 +466,7 @@ Eigen::VectorXd HdpSampler::lastirling1(int n) const
 void HdpSampler::updateParams(){
 
     // Sampling 
-    sample::GSL_RNG engine(seed);  //engine with seed
+    //sample::GSL_RNG engine(seed);  //engine with seed
     sample::rbeta Beta;  //create beta sampler object
     sample::rgamma Gamma; //create gamma sampler object
     sample::runif Unif; //create unif sampler object
@@ -478,6 +480,9 @@ void HdpSampler::updateParams(){
     u = Unif(engine);
     if(u < pi){
         //Rcpp::Rcout<<"-----------------------------------------"<<std::endl;
+        //Rcpp::Rcout<<"u < pi; pi = "<<pi<<std::endl;
+        //Rcpp::Rcout<<"K = "<<(double)numComponents<<std::endl;
+        //Rcpp::Rcout<<"m = "<<TotalNumTables<<std::endl;
         //Rcpp::Rcout<<"shape = "<<a_gamma + (double)numComponents<<std::endl;
         //Rcpp::Rcout<<"rate =  "<< b_gamma - std::log(eta) <<std::endl;
         //Rcpp::Rcout<<"mean = "<< (a_gamma + (double)numComponents) / (b_gamma - std::log(eta)) <<std::endl;
@@ -485,6 +490,9 @@ void HdpSampler::updateParams(){
     }
     else{
         //Rcpp::Rcout<<"-----------------------------------------"<<std::endl;
+        //Rcpp::Rcout<<"u > pi; pi = "<<pi<<std::endl;
+        //Rcpp::Rcout<<"K = "<<(double)numComponents<<std::endl;
+        //Rcpp::Rcout<<"m = "<<TotalNumTables<<std::endl;
         //Rcpp::Rcout<<"shape = "<<a_gamma + (double)numComponents - 1.0<<std::endl;
         //Rcpp::Rcout<<"rate =  "<< b_gamma - std::log(eta) <<std::endl;
         //Rcpp::Rcout<<"mean = "<< (a_gamma + (double)numComponents - 1.0) / (b_gamma - std::log(eta)) <<std::endl;

@@ -56,14 +56,18 @@ class HdpSampler {
 
     // HDP
     Eigen::VectorXd betas;
-    double alpha = 0.001; // initial value
-    double gamma = 0.001; // initial value
+    double alpha = 10;//0.001; // initial value
+    double gamma = 1;//0.001; // initial value
     double a_gamma = 2.0; // initial value
     double b_gamma = 2.0; // initial value
     double a_alpha = 2.0; // initial value
     double b_alpha = 2.0; // initial value
+    double alpha_init = 0.0;
+    double gamma_init = 0.0;
+    bool UpdateConc = TRUE;
 
     unsigned long seed = 8012020;
+    sample::GSL_RNG engine{seed};
     std::mt19937_64 rng{8012020};
 
 
@@ -91,7 +95,8 @@ class HdpSampler {
     HdpSampler(const std::vector<std::vector<double>> &_data,
                double _priorMean, double _priorA, double _priorB, double _priorLambda, 
                double _a_gamma, double _b_gamma,
-               double _a_alpha, double _b_alpha);
+               double _a_alpha, double _b_alpha,
+               double _alpha_init,double _gamma_init,bool _UpdateConc);
 
     void init();
 
@@ -100,7 +105,8 @@ class HdpSampler {
         sampleAllocations();
         relabel();
         sampleLatent();
-        updateParams();
+        if(UpdateConc)
+         updateParams();
         check();
     }
 

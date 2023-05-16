@@ -17,7 +17,7 @@ predictive <- function( idx_group, grid, fit,
     # Get sampled values
     K_it    <- fit$K[it]                     # get the number of clusters
     mu_it   <- fit$mu[[it]]                  # get the mean, (mu_{1}^{(it)}, ..., mu_{M}^{(it)})
-    sig2_it <- fit$sigma[[it]]               # get the variances, (sigma^2_{1}^{(it)}, ..., sigma^2_{M}^{(it)})
+    sig2_it <- fit$sigma[[it]]^2               # get the variances, (sigma^2_{1}^{(it)}, ..., sigma^2_{M}^{(it)})
     q_it    <- fit$q_pred[[it]][idx_group,]  # get the weights of required group
 
     if(length(q_it)!=(K_it+1))
@@ -33,16 +33,20 @@ predictive <- function( idx_group, grid, fit,
 
     # Prior_grid is a vector of length l_grid, it contains the marginal prior evauated over the grid
     # Prior_grid[i] = nct(grid[i] | dof = nu0, loc = mu0, scale = sqrt(k0/(k0+1)*sigma0) ), where nct is the non-central student-t distribution
+
     sigma0 = priorB/priorA
     nu0 = 2*priorA
-    scale = sqrt( (priorLambda)/(priorLambda + 1) * sigma0 )
+    scale = sqrt( sigma0/priorLambda )
+    #sigma0 = priorB/priorA
+    #nu0 = 2*priorA
+    #scale = sqrt( (priorLambda)/(priorLambda + 1) * sigma0 )
     if(scale <= 0)
       stop("The scale parameter has to be strictly positive.")
 
     Prior_grid = 1/scale * dt(x = (grid-priorMean)/scale, df = nu0 )
 
     # Compute predicted density at iteration it
-    MIX[it-burnin,] <- q_it[K_it+1] * Prior_grid +  q_it[1:K_it] %*% Kernel_grid
+    MIX[it-burnin,] <- q_it[K_it+1] * Prior_grid + q_it[1:K_it] %*% Kernel_grid
   }
   # Density estimation and credible bounds
   pred_est <- apply(MIX,2,quantile,prob=c(0.025,0.5,0.975))

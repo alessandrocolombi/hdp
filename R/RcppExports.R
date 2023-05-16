@@ -11,8 +11,8 @@ TestGSL <- function() {
 #' HDP Marginal Sampler
 #'
 #' @export
-HDPMarginalSampler <- function(Niter, Nburnin, d, n_j, data_list, priorMean, priorA, priorB, priorLambda, a_gamma, b_gamma, a_alpha, b_alpha) {
-    .Call(`_hdp_HDPMarginalSampler`, Niter, Nburnin, d, n_j, data_list, priorMean, priorA, priorB, priorLambda, a_gamma, b_gamma, a_alpha, b_alpha)
+HDPMarginalSampler <- function(Niter, Nburnin, d, n_j, data_list, priorMean, priorA, priorB, priorLambda, a_gamma, b_gamma, a_alpha, b_alpha, alpha_init, gamma_init, UpdateConc) {
+    .Call(`_hdp_HDPMarginalSampler`, Niter, Nburnin, d, n_j, data_list, priorMean, priorA, priorB, priorLambda, a_gamma, b_gamma, a_alpha, b_alpha, alpha_init, gamma_init, UpdateConc)
 }
 
 #' Testing HDP
