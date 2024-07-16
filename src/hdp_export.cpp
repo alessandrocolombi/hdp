@@ -30,7 +30,7 @@ Rcpp::List HDPMarginalSampler(  int Niter, int Nburnin,
                                 double priorMean, double priorA, double priorB, 
                                 double priorLambda, double a_gamma, double b_gamma,
                                 double a_alpha, double b_alpha,
-                                double alpha_init,double gamma_init,bool UpdateConc) {
+                                double alpha_init,double gamma_init,bool UpdateConc, bool precompute_Stirling) {
 
     int n = std::accumulate(n_j.cbegin(),n_j.cend(),0);
 
@@ -47,7 +47,7 @@ Rcpp::List HDPMarginalSampler(  int Niter, int Nburnin,
         }
     }
 
-    HdpSampler sampler(data,priorMean,priorA,priorB,priorLambda, a_gamma, b_gamma, a_alpha, b_alpha,alpha_init,gamma_init,UpdateConc);
+    HdpSampler sampler(data,priorMean,priorA,priorB,priorLambda, a_gamma, b_gamma, a_alpha, b_alpha,alpha_init,gamma_init,UpdateConc,precompute_Stirling);
     //Rcpp::Rcout<<"Init start"<<std::endl;
     sampler.init();
     sampler.check();
@@ -151,7 +151,7 @@ Rcpp::List TestHDP() {
     */
 
     //std::deque<HdpState> chains;
-    HdpSampler sampler(data,0.0,2.0,2.0,0.5,1.0,1.0,1.0,1.0,1.0,1.0,TRUE);
+    HdpSampler sampler(data,0.0,2.0,2.0,0.5,1.0,1.0,1.0,1.0,1.0,1.0,TRUE,TRUE);
     Rcpp::Rcout<<"Init start"<<std::endl;
     sampler.init();
     sampler.check();

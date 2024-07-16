@@ -17,10 +17,10 @@
 HdpSampler::HdpSampler( const std::vector<std::vector<double>> &_data,
                         double _priorMean, double _priorA, double _priorB, double _priorLambda,
                         double _a_gamma, double _b_gamma, double _a_alpha, double _b_alpha,
-                        double _alpha_init,double _gamma_init,bool _UpdateConc): data(_data), 
+                        double _alpha_init,double _gamma_init,bool _UpdateConc, bool _precompute_Stirling): data(_data), 
                             priorMean(_priorMean), priorA(_priorA), priorB(_priorB), priorLambda(_priorLambda), 
                             a_gamma(_a_gamma), b_gamma(_b_gamma), a_alpha(_a_alpha), b_alpha(_b_alpha),
-                            alpha_init(_alpha_init), gamma_init(_gamma_init), UpdateConc(_UpdateConc)
+                            alpha_init(_alpha_init), gamma_init(_gamma_init), UpdateConc(_UpdateConc), precompute_Stirling(_precompute_Stirling)
 {
     // Set number of groups to size of input data vector
     numGroups = data.size();
@@ -40,6 +40,14 @@ HdpSampler::HdpSampler( const std::vector<std::vector<double>> &_data,
         // Resize the cluster_allocs[i] vector to the size of the i-th group
         cluster_allocs[i].resize(samplesPerGroup[i]);
     }
+
+    // Compute Stirling numbers
+    if(precompute_Stirling){
+      Rcpp::Rcout<<"Stirling numbers precalculations ... ";
+      lastirling_mat = lastirlings1(numdata); // sub-optimal, it is enough to compute lastirlings1( max_j(n_j) )
+      Rcpp::Rcout<<"done!"<<std::endl;  
+    }
+
 }
 
 
@@ -213,7 +221,17 @@ void HdpSampler::sampleLatent() {
         for (int h=0; h < numComponents; h++) {
             int numCustomers = sizes_from_rest[i][h];
             Eigen::VectorXd probas = Eigen::VectorXd::Zero(numCustomers);
-            Eigen::VectorXd log_stirling1_vec = lastirling1(numCustomers);
+
+            // Stirling number computation
+            Eigen::VectorXd log_stirling1_vec;
+            if(precompute_Stirling){
+                Eigen::VectorXd temp = lastirling_mat.row(numCustomers);
+                Eigen::VectorXd temp2 = temp.head(numCustomers+1);
+                log_stirling1_vec = temp2.tail(numCustomers);
+            }
+            else
+                log_stirling1_vec = lastirling1(numCustomers);
+
             if(log_stirling1_vec.size() < numCustomers )
                 throw std::runtime_error("Error in sampleLatent, size of log_stirling1_vec ");
 
@@ -301,37 +319,6 @@ void HdpSampler::relabel() {
     numComponents = means.size();
     sampleLatent();
 }
-
-/*
-HdpState HdpSampler::getStateAsProto() {
-    HdpState state;
-    state.set_num_components(numComponents);
-    for (int i=0; i < numGroups; i++) {
-        HdpState::GroupParams* p;
-        p = state.add_groupparams();
-        *p->mutable_cluster_size() = {
-            sizes_from_rest[i].begin(), sizes_from_rest[i].end() };
-        *p->mutable_cluster_allocs() = {
-            cluster_allocs[i].begin(), cluster_allocs[i].end()};
-    }
-    for (int h=0; h < numComponents; h++) {
-        UnivariateMixtureAtom* atom;
-        atom = state.add_atoms();
-        atom->set_mean(means[h]);
-        atom->set_stdev(stddevs[h]);
-    }
-    *state.mutable_betas() = {betas.data(), betas.data() + betas.size()};
-    HdpState::HyperParams hypers;
-    hypers.set_mu0(priorMean);
-    hypers.set_a(priorA);
-    hypers.set_b(priorB);
-    hypers.set_lamb(priorLambda);
-    state.mutable_hyper_params()->CopyFrom(hypers);
-    state.set_alpha(alpha);
-    state.set_gamma(gamma);
-    return state;
-}
-*/
 
 
 void HdpSampler::check() {
@@ -434,10 +421,9 @@ double HdpSampler::marginalLogLikeNormalGamma(double datum, double mean, double 
 
 // Rigon - lastirling1
 //
-// Commento Ale: questa fuzione restituisce il vettore contenente il logaritmo dell'intero sviluppo dei moduli di un
-// numero di Stirling del primo tipo. 
-// Per esempio, per n=4, ho |s(n,0)| = 0, |s(n,1)| = 6, |s(n,2)|= 11, |s(n,3)| = 6, |s(n,4)| = 1.
-// Quindi, questa funzione resituisce lastirling1(4) = log(6,11,6,1) = (1.791,2.397,1.791,0)
+// Vector of lenght n such that the element in k-th position is log|s(n,k)|
+// e.g., for n=4 we have |s(n,0)| = 0, |s(n,1)| = 6, |s(n,2)|= 11, |s(n,3)| = 6, |s(n,4)| = 1
+// the function returns lastirling1(4) = log(6,11,6,1) = (1.791,2.397,1.791,0)
 Eigen::VectorXd HdpSampler::lastirling1(int n) const 
 {
   if(n == 0){
@@ -462,6 +448,29 @@ Eigen::VectorXd HdpSampler::lastirling1(int n) const
   return( LogSk.tail(n) ); //eliminate the first element, i.e, return the last n elements
 }
 
+// Rigon - lastirlings1
+//
+// Matrix of size (n+1)x(n+1) such that log|s(n,k)| is in position (n+1,k+1) (counting from 1)
+// e.g., n = 4; Mat = lastirlings1(n); exp(Mat)[n,] = log(6,11,6,1) = (1.791,2.397,1.791,0) (counting from 0) 
+Eigen::MatrixXd HdpSampler::lastirlings1(int n){
+  double inf = std::numeric_limits<double>::infinity();
+
+  Eigen::MatrixXd LogS = Eigen::MatrixXd::Constant(n+1,n+1,-inf);
+  
+  // Fill the starting values
+  LogS(0,0) = 0;
+  LogS(1,1) = 0;
+  
+  for(int i = 2; i <= n; i++){
+    for(int j = 1; j < i; j++){
+      LogS(i,j) = LogS(i-1,j) + std::log(i-1 + std::exp(LogS(i-1,j-1) - LogS(i-1,j))); 
+    }
+    LogS(i,i)  = 0;
+  }
+
+  
+  return(LogS);
+}
 
 void HdpSampler::updateParams(){
 

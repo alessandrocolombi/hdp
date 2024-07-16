@@ -66,6 +66,10 @@ class HdpSampler {
     double gamma_init = 0.0;
     bool UpdateConc = TRUE;
 
+    // Stirling numbers
+    Eigen::MatrixXd lastirling_mat;
+    bool precompute_Stirling;
+
     unsigned long seed = 8012020;
     sample::GSL_RNG engine{seed};
     std::mt19937_64 rng{8012020};
@@ -96,7 +100,8 @@ class HdpSampler {
                double _priorMean, double _priorA, double _priorB, double _priorLambda, 
                double _a_gamma, double _b_gamma,
                double _a_alpha, double _b_alpha,
-               double _alpha_init,double _gamma_init,bool _UpdateConc);
+               double _alpha_init,double _gamma_init, 
+               bool _UpdateConc, bool _precompute_Stirling);
 
     void init();
 
@@ -130,7 +135,7 @@ class HdpSampler {
     double marginalLogLikeNormalGamma(double datum, double mean, double a, double b, double lambda) const;
 
     Eigen::VectorXd lastirling1(int n) const;
-    //HdpState getStateAsProto();
+    Eigen::MatrixXd lastirlings1(int n);
 };
 
 #endif  // SRC_HDP_HPP

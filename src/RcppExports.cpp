@@ -21,8 +21,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // HDPMarginalSampler
-Rcpp::List HDPMarginalSampler(int Niter, int Nburnin, int d, std::vector<int> n_j, Rcpp::List data_list, double priorMean, double priorA, double priorB, double priorLambda, double a_gamma, double b_gamma, double a_alpha, double b_alpha, double alpha_init, double gamma_init, bool UpdateConc);
-RcppExport SEXP _hdp_HDPMarginalSampler(SEXP NiterSEXP, SEXP NburninSEXP, SEXP dSEXP, SEXP n_jSEXP, SEXP data_listSEXP, SEXP priorMeanSEXP, SEXP priorASEXP, SEXP priorBSEXP, SEXP priorLambdaSEXP, SEXP a_gammaSEXP, SEXP b_gammaSEXP, SEXP a_alphaSEXP, SEXP b_alphaSEXP, SEXP alpha_initSEXP, SEXP gamma_initSEXP, SEXP UpdateConcSEXP) {
+Rcpp::List HDPMarginalSampler(int Niter, int Nburnin, int d, std::vector<int> n_j, Rcpp::List data_list, double priorMean, double priorA, double priorB, double priorLambda, double a_gamma, double b_gamma, double a_alpha, double b_alpha, double alpha_init, double gamma_init, bool UpdateConc, bool precompute_Stirling);
+RcppExport SEXP _hdp_HDPMarginalSampler(SEXP NiterSEXP, SEXP NburninSEXP, SEXP dSEXP, SEXP n_jSEXP, SEXP data_listSEXP, SEXP priorMeanSEXP, SEXP priorASEXP, SEXP priorBSEXP, SEXP priorLambdaSEXP, SEXP a_gammaSEXP, SEXP b_gammaSEXP, SEXP a_alphaSEXP, SEXP b_alphaSEXP, SEXP alpha_initSEXP, SEXP gamma_initSEXP, SEXP UpdateConcSEXP, SEXP precompute_StirlingSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -42,7 +42,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type alpha_init(alpha_initSEXP);
     Rcpp::traits::input_parameter< double >::type gamma_init(gamma_initSEXP);
     Rcpp::traits::input_parameter< bool >::type UpdateConc(UpdateConcSEXP);
-    rcpp_result_gen = Rcpp::wrap(HDPMarginalSampler(Niter, Nburnin, d, n_j, data_list, priorMean, priorA, priorB, priorLambda, a_gamma, b_gamma, a_alpha, b_alpha, alpha_init, gamma_init, UpdateConc));
+    Rcpp::traits::input_parameter< bool >::type precompute_Stirling(precompute_StirlingSEXP);
+    rcpp_result_gen = Rcpp::wrap(HDPMarginalSampler(Niter, Nburnin, d, n_j, data_list, priorMean, priorA, priorB, priorLambda, a_gamma, b_gamma, a_alpha, b_alpha, alpha_init, gamma_init, UpdateConc, precompute_Stirling));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -59,7 +60,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_hdp_TestGSL", (DL_FUNC) &_hdp_TestGSL, 0},
-    {"_hdp_HDPMarginalSampler", (DL_FUNC) &_hdp_HDPMarginalSampler, 16},
+    {"_hdp_HDPMarginalSampler", (DL_FUNC) &_hdp_HDPMarginalSampler, 17},
     {"_hdp_TestHDP", (DL_FUNC) &_hdp_TestHDP, 0},
     {NULL, NULL, 0}
 };
