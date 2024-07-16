@@ -220,6 +220,8 @@ void HdpSampler::sampleLatent() {
         Eigen::VectorXd curr = Eigen::VectorXd::Zero(numComponents + 1);
         for (int h=0; h < numComponents; h++) {
             int numCustomers = sizes_from_rest[i][h];
+            if(numCustomers == 0)
+                throw std::runtime_error("Error in HdpSampler::sampleLatent. numCustomers is equal to 0 ");
             Eigen::VectorXd probas = Eigen::VectorXd::Zero(numCustomers);
 
             // Stirling number computation
