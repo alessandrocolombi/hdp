@@ -1,21 +1,23 @@
 #ifndef SRC_HDP_HPP
 #define SRC_HDP_HPP
 
-/* 
+/*
    // Includes from Mario
    //#include <random>
    //#include <vector>
    //#include <stan/math/prim/mat.hpp>
-   
+
    //#include "mcmc_utils.hpp"
    //#include "stirling_first.hpp"
    //#include "univariate_mixture_state.pb.h"
 */
 
 // [[Rcpp::depends(RcppEigen)]]
+// [[Rcpp::depends(RcppGSL)]]
 #define STRICT_R_HEADERS
 #include <Rcpp.h>
 #include <RcppEigen.h>
+#include <RcppGSL.h>
 #include "include_headers.h"
 #include "recurrent_traits.h"
 #include "GSL_wrappers.h"
@@ -27,8 +29,8 @@ using namespace HDP_Traits;
    P_1,...,P_d | P \iid DP( \alpha, P )
                  P \sim DP( \gamma, P_0 )
                P_0 = Normal( \mu; priorMean, \sigma^2/priorLambda ) x InvGamma( \sigma^2; priorA, priorB )
-           \alpha  \sim \operatorname{gamma}(a_\alpha, b_\alpha)  
-           \gamma  \sim \operatorname{gamma}(a_\gamma, b_\gamma)  
+           \alpha  \sim \operatorname{gamma}(a_\alpha, b_\alpha)
+           \gamma  \sim \operatorname{gamma}(a_\gamma, b_\gamma)
 
 */
 
@@ -78,15 +80,15 @@ class HdpSampler {
  public:
    // Save
    std::vector<std::vector< std::vector<int>>> out_Allocations;
-   std::vector< Rcpp::NumericVector > out_mu; 
+   std::vector< Rcpp::NumericVector > out_mu;
    std::vector< Rcpp::NumericVector > out_sigma;
    std::vector<int> out_K;
    std::vector<double> out_alpha;
    std::vector<double> out_gamma;
    // WEIGHTS FOR DENSITY ESTIMATION
-   // q is a vector of matrices. The external vector has length n_iter. Then, q[it] is a matrix of size d x K+1, where 
-   // K = K[it] is the number of clusters during iteration it. Within each row, elements are the unnormalized cluster 
-   // probabilities in log scale for each level j, hence 
+   // q is a vector of matrices. The external vector has length n_iter. Then, q[it] is a matrix of size d x K+1, where
+   // K = K[it] is the number of clusters during iteration it. Within each row, elements are the unnormalized cluster
+   // probabilities in log scale for each level j, hence
    // log( q_1(n_11,...,n_1K,U_1) ), ... , log( q_K(n_11,...,n_1K,U_1) ), log( q_{K+1}(n_11,...,n_1K,U_1) )
    // log( q_1(n_j1,...,n_jK,U_j) ), ... , log( q_K(n_j1,...,n_jK,U_j) ), log( q_{K+1}(n_j1,...,n_jK,U_j) )
    // log( q_1(n_d1,...,n_dK,U_d) ), ... , log( q_K(n_d1,...,n_dK,U_d) ), log( q_{K+1}(n_d1,...,n_dK,U_d) )
@@ -97,10 +99,10 @@ class HdpSampler {
     HdpSampler() {}
 
     HdpSampler(const std::vector<std::vector<double>> &_data,
-               double _priorMean, double _priorA, double _priorB, double _priorLambda, 
+               double _priorMean, double _priorA, double _priorB, double _priorLambda,
                double _a_gamma, double _b_gamma,
                double _a_alpha, double _b_alpha,
-               double _alpha_init,double _gamma_init, 
+               double _alpha_init,double _gamma_init,
                bool _UpdateConc, bool _precompute_Stirling);
 
     void init();

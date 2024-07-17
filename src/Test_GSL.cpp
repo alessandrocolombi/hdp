@@ -2,9 +2,11 @@
 #define __TESTGSL_HPP__
 
 // [[Rcpp::depends(RcppEigen)]]
+// [[Rcpp::depends(RcppGSL)]]
 #define STRICT_R_HEADERS
 #include <Rcpp.h>
 #include <RcppEigen.h>
+#include <RcppGSL.h>
 #include "include_headers.h"
 #include "recurrent_traits.h"
 #include "GSL_wrappers.h"

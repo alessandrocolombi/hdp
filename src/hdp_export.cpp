@@ -1,7 +1,9 @@
 // [[Rcpp::depends(RcppEigen)]]
+// [[Rcpp::depends(RcppGSL)]]
 #define STRICT_R_HEADERS
 #include <Rcpp.h>
 #include <RcppEigen.h>
+#include <RcppGSL.h>
 #include "include_headers.h"
 #include "recurrent_traits.h"
 #include "GSL_wrappers.h"
@@ -14,7 +16,7 @@
     #include <iostream>
     #include <fstream>
     #include <stan/math/prim/mat.hpp>
-    
+
     #include "../hdp.hpp"
     #include "../recordio.hpp"
     #include <random>
@@ -27,7 +29,7 @@
 // [[Rcpp::export]]
 Rcpp::List HDPMarginalSampler(  int Niter, int Nburnin,
                                 int d, std::vector<int> n_j, Rcpp::List data_list,
-                                double priorMean, double priorA, double priorB, 
+                                double priorMean, double priorA, double priorB,
                                 double priorLambda, double a_gamma, double b_gamma,
                                 double a_alpha, double b_alpha,
                                 double alpha_init,double gamma_init,bool UpdateConc, bool precompute_Stirling) {
@@ -60,7 +62,7 @@ Rcpp::List HDPMarginalSampler(  int Niter, int Nburnin,
             Rcpp::Rcout<<"iter = "<<i<<std::endl;
         }
     }
-    
+
     //Rcpp::Rcout<<"Sampling starts"<<std::endl;
     int thin = 1;
     for (int i=0; i < Niter; i++) {
@@ -75,7 +77,7 @@ Rcpp::List HDPMarginalSampler(  int Niter, int Nburnin,
 
     const std::vector<std::vector< std::vector<int>>>& Alloc = sampler.out_Allocations;
     std::vector<unsigned int> fprowvec; //final partition rowvec
-    
+
     // store total number of data (i.e. cardinality{y_ji})
     Rcpp::NumericMatrix fpmatr(Niter, n );  //final partition matrix
 
@@ -84,10 +86,10 @@ Rcpp::List HDPMarginalSampler(  int Niter, int Nburnin,
         for(unsigned j=0; j<d; j++){
             fprowvec.insert(fprowvec.end(), Alloc[it][j].cbegin(), Alloc[it][j].cend());
         }
-    
+
         fpmatr(it, Rcpp::_) = Rcpp::NumericMatrix( 1, n, fprowvec.begin() ); //fpmatr[it,:] in R notation
     }
-            
+
     //Rcpp::Rcout << "Done" << std::endl;
 
     return Rcpp::List::create( Rcpp::Named("Partition") = fpmatr,
@@ -97,7 +99,7 @@ Rcpp::List HDPMarginalSampler(  int Niter, int Nburnin,
                                 Rcpp::Named("gamma") = sampler.out_gamma,
                                 Rcpp::Named("K") = sampler.out_K,
                                 Rcpp::Named("q_pred") = sampler.out_q
-                             ); 
+                             );
 }
 
 
@@ -111,7 +113,7 @@ Rcpp::List TestHDP() {
     int numGroups = 3;
     int numSamples = 10;//100;
 
-    // Sampling 
+    // Sampling
     sample::GSL_RNG engine(12345678);  //engine with seed
     sample::rnorm  Norm;           //create normal sampler object
     sample::sample_index sample_index;  //create categorical sampler object
@@ -164,7 +166,7 @@ Rcpp::List TestHDP() {
         sampler.sample();
     }
     // spSampler.printDebugString();
-    
+
     Rcpp::Rcout<<"Sampling starts"<<std::endl;
     int Niter = 10;
     int thin = 1;
@@ -177,7 +179,7 @@ Rcpp::List TestHDP() {
 
     const std::vector<std::vector< std::vector<int>>>& Alloc = sampler.out_Allocations;
     std::vector<unsigned int> fprowvec; //final partition rowvec
-    
+
     // store total number of data (i.e. cardinality{y_ji})
     unsigned int n_data = numSamples*numGroups;
     Rcpp::NumericMatrix fpmatr(Niter, n_data );  //final partition matrix
@@ -187,10 +189,10 @@ Rcpp::List TestHDP() {
         for(unsigned j=0; j<numGroups; j++){
             fprowvec.insert(fprowvec.end(), Alloc[it][j].cbegin(), Alloc[it][j].cend());
         }
-    
+
         fpmatr(it, Rcpp::_) = Rcpp::NumericMatrix( 1, n_data, fprowvec.begin() ); //fpmatr[it,:] in R notation
     }
-            
+
     // spSampler.printDebugString();
     //writeManyToFile(chains, "chains_hdp.dat");
     Rcpp::Rcout << "Done" << std::endl;
@@ -202,7 +204,7 @@ Rcpp::List TestHDP() {
                                 Rcpp::Named("gamma") = sampler.out_gamma,
                                 Rcpp::Named("K") = sampler.out_K
                              );
-    
+
     /*
     std::deque<HdpState> restored;
     restored = readManyFromFile<HdpState>("chains_now2.dat");

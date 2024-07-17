@@ -1,6 +1,12 @@
 #ifndef __GSLWRAPPERS_H__
 #define __GSLWRAPPERS_H__
 
+// [[Rcpp::depends(RcppEigen)]]
+// [[Rcpp::depends(RcppGSL)]]
+#include <Rcpp.h>
+#include <RcppEigen.h>
+#include <RcppGSL.h>
+
 #include "include_headers.h"
 #include "recurrent_traits.h"
 
@@ -131,7 +137,7 @@ namespace sample{ //use the sample:: namespace to avoid clashes with R or other 
 	     In other words, it generates a random number generator, generates a number and destroys the generator*/
 	  }
 	};
-	
+
 
 	// Generic discrete distribution sampling. Possibly bugged, check it before using it
 	struct discrete{

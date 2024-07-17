@@ -12,4 +12,8 @@ LazyData: true
 RoxygenNote: 7.1.2
 LinkingTo: 
     Rcpp,
-    RcppEigen
+    RcppEigen,
+    RcppGSL
+Imports: 
+    Rcpp,
+    RcppGSL
